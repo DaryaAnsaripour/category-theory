@@ -111,3 +111,94 @@ Definition Pushout {C : Category} {x y z : C^op} (f : x ~> z) (g : y ~> z) :=
    equalizers. In fact, by the existence theorem for limits, all finite limits
    exist in a category with a terminal object, binary products and
    equalizers." *)
+
+
+
+
+Require Import Category.Theory.Morphisms.
+Require Import Category.Theory.Isomorphism.
+
+Ltac reassociate_left  := repeat (rewrite <- comp_assoc); try f_equiv; cat.
+Ltac reassociate_right := repeat (rewrite comp_assoc); try f_equiv; cat.
+
+Theorem pullback_implies_monic {C : Category} {A B : C} (f : A ~> B) 
+  (pb : Pullback f f) (pbISO : pb ≅ A) (H : (@pullback_fst _ _ _ _ _ _ pb) ∘ (from pbISO) ≈ id(x:=A)) 
+  (I : (@pullback_snd _ _ _ _ _ _ pb) ∘ (from pbISO) ≈ id(x:=A)) : Monic f.
+Proof.
+  destruct pb. simpl in *. rename Pull0 into P. rename pullback_fst0 into p1. rename pullback_snd0 into p2.
+  assert (GOOL : ∀ z (g1 g2 : z ~> A), f ∘ g1 ≈ f ∘ g2 → g1 ≈ g2).
+  + intros.
+    destruct pbISO. simpl in *. apply ump_pullbacks0 in X. destruct X. rename unique_obj into u. 
+    destruct unique_property as [p1U p2U]. 
+    assert(HEEEELP :  ∃! v : z ~> A, (p1 ∘ from ∘ v ≈ g1) ∧ (p2 ∘ from ∘ v ≈ g2)). 
+    {
+       exists (to ∘ u).
+       +++ split.
+           ++++ reassociate_left. rewrite comp_assoc with (f := from) (g := to) (h := u). rewrite iso_from_to. cat.
+           ++++ reassociate_left. rewrite comp_assoc with (f := from) (g := to) (h := u). rewrite iso_from_to. cat.
+       +++ intros. specialize uniqueness with (from ∘ v).
+           destruct X. rewrite <- comp_assoc in e. rewrite <- comp_assoc in e0.
+           assert (ANDESHUN : p1 ∘ (from ∘ v) ≈ g1 ∧ p2 ∘ (from ∘ v) ≈ g2 ).
+           { split; assumption. }
+           apply uniqueness in ANDESHUN. rewrite ANDESHUN. reassociate_right. rewrite iso_to_from. cat.
+      }
+      destruct HEEEELP. rename unique_obj into v. 
+      destruct unique_property as [LEFT RIGHT]. 
+      rewrite H in LEFT. rewrite I in RIGHT.
+      rewrite <- LEFT. rewrite <- RIGHT. cat.
+  + refine ({|
+      monic := GOOL
+    |}).
+Defined.
+
+
+Theorem pullback_unique {C : Category} {A X Y : C} (f : X ~> A) (g : Y ~> A)
+  (pp pq : Pullback f g) : pp ≅ pq.
+Proof.
+  destruct pp. destruct pq. simpl in *. 
+  rename Pull0 into P. rename Pull1 into Q. rename pullback_fst0 into p1. rename pullback_fst1 into q1.
+  rename pullback_snd0 into p2. rename pullback_snd1 into q2.
+  pose proof (ump_pullbacks0 Q q1 q2 pullback_commutes1) as from_iso. 
+  pose proof (ump_pullbacks1 P p1 p2 pullback_commutes0) as to_iso.
+  destruct from_iso as [j Hj uniqueness_j]. destruct to_iso as [i Hi uniqueness_i].
+  destruct Hj as [Hj_p1 Hj_p2].
+  destruct Hi as [Hi_q1 Hi_q2].
+
+  assert (p1_ji : p1 ∘ j ∘ i ≈ p1). { rewrite Hj_p1. cat. }
+  assert (p2_ji : p2 ∘ j ∘ i ≈ p2). { rewrite Hj_p2. cat. }
+
+  assert (q1_ij : q1 ∘ i ∘ j ≈ q1). { rewrite Hi_q1. cat. }
+  assert (q2_ij : q2 ∘ i ∘ j ≈ q2). { rewrite Hi_q2. cat. }
+
+  pose proof (ump_pullbacks0 P p1 p2 pullback_commutes0) as H.
+  destruct H as [u Hu uniqueness_u].
+
+  pose proof (ump_pullbacks1 Q q1 q2 pullback_commutes1) as H.
+  destruct H as [v Hv uniqueness_v].
+
+  rewrite <- comp_assoc in p1_ji. rewrite <- comp_assoc in p2_ji.
+  assert (TMP : p1 ∘ (j ∘ i) ≈ p1 ∧ p2 ∘ (j ∘ i) ≈ p2). { auto. }
+  pose proof (uniqueness_u (j ∘ i) TMP) as uji.
+  clear TMP.
+
+  rewrite <- comp_assoc in q1_ij. rewrite <- comp_assoc in q2_ij.
+  assert (TMP : q1 ∘ (i ∘ j) ≈ q1 ∧ q2 ∘ (i ∘ j) ≈ q2). { auto. }
+  pose proof (uniqueness_v (i ∘ j) TMP) as vij.
+  clear TMP.
+  
+    unshelve refine {|to := i; from := j|}.
+    + rewrite <- vij. apply uniqueness_v. split; cat.
+    + rewrite <- uji. apply uniqueness_u. split; cat.
+Qed.
+
+
+
+Theorem problmemm {C : Category} {A B} (f : A ~> B) (MF : Monic f) :
+  @Pullback C A A B f f.
+Proof.
+  unshelve refine {|Pull := A; pullback_fst := id(x:=A); pullback_snd := id(x:=A)|}.
+  + cat.
+  + intros. exists q1. 
+    ++ split; cat. destruct MF. apply monic in X. assumption.
+    ++ intros. destruct X0. simpl in *. rewrite <- e. cat. 
+Qed.
